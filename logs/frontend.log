@@ -1,0 +1,26 @@
+
+> headscale-ui@2025.07.12 dev
+> npm run clean && vite dev --port 5173 --host 0.0.0.0
+
+
+> headscale-ui@2025.07.12 clean
+> rm -rf .svelte-kit && rm -f ../pids/frontend.pid
+
+▲ [WARNING] Cannot find base config file "./.svelte-kit/tsconfig.json" [tsconfig.json]
+
+    jsconfig.json:2:12:
+      2 │   "extends": "./.svelte-kit/tsconfig.json",
+        ╵              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
+Port 5175 is in use, trying another one...
+Port 5176 is in use, trying another one...
+Port 5177 is in use, trying another one...
+Port 5178 is in use, trying another one...
+
+  VITE v5.4.19  ready in 1903 ms
+
+  ➜  Local:   http://localhost:5179/
+  ➜  Network: http://192.168.110.13:5179/

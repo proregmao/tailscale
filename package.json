@@ -1,0 +1,49 @@
+{
+  "name": "tailscale-unlimited-control",
+  "version": "1.0.0",
+  "description": "Tailscale Unlimited Control - 企业级网络管理平台",
+  "main": "start.js",
+  "scripts": {
+    "start": "node start.js start",
+    "stop": "node start.js stop",
+    "restart": "node start.js restart",
+    "status": "node start.js status",
+    "logs": "node start.js logs",
+    "dev": "node start.js start",
+    "build": "cd headscale-ui && npm run build",
+    "preview": "cd headscale-ui && npm run preview",
+    "backend": "cd cmd/unlimited-control && go run .",
+    "frontend": "cd headscale-ui && npm run dev",
+    "install-deps": "cd headscale-ui && npm install",
+    "setup": "npm run install-deps",
+    "clean": "rm -rf logs pids headscale-ui/dist headscale-ui/.svelte-kit cmd/unlimited-control/unlimited-control*",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "tailscale",
+    "network",
+    "management",
+    "vpn",
+    "mesh",
+    "svelte",
+    "go",
+    "enterprise",
+    "control-plane"
+  ],
+  "author": "Tailscale Unlimited Control Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tailscale/tailscale.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tailscale/tailscale/issues"
+  },
+  "homepage": "https://github.com/tailscale/tailscale#readme",
+  "devDependencies": {},
+  "dependencies": {}
+}

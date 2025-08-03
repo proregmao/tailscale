@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>样式统一验证</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .verification-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .page-preview {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 5px;
+            display: inline-block;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .page-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Tailscale Unlimited Control 样式统一验证</h1>
+    
+    <div class="verification-section">
+        <h2>📋 验证总览</h2>
+        <p>本页面用于验证所有页面是否使用了统一的样式布局。</p>
+        <button class="test-button" onclick="verifyAllPages()">🔍 验证所有页面样式</button>
+        <button class="test-button" onclick="showAllPages()">👀 显示所有页面预览</button>
+        <div id="verification-results" class="results" style="display: none;"></div>
+    </div>
+
+    <div class="verification-section">
+        <h2>📊 页面样式对比</h2>
+        <div class="page-grid">
+            <!-- 仪表板页面（参考样式） -->
+            <div>
+                <h3>🏠 仪表板（参考样式）</h3>
+                <iframe src="http://localhost:5173/" class="page-preview"></iframe>
+                <div class="status success">✅ 参考样式</div>
+            </div>
+
+            <!-- 设备管理页面 -->
+            <div>
+                <h3>💻 设备管理</h3>
+                <iframe src="http://localhost:5173/devices.html" class="page-preview"></iframe>
+                <div id="devices-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 用户管理页面 -->
+            <div>
+                <h3>👥 用户管理</h3>
+                <iframe src="http://localhost:5173/users.html" class="page-preview"></iframe>
+                <div id="users-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 路由管理页面 -->
+            <div>
+                <h3>🛣️ 路由管理</h3>
+                <iframe src="http://localhost:5173/routes.html" class="page-preview"></iframe>
+                <div id="routes-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- DNS管理页面 -->
+            <div>
+                <h3>🌐 DNS管理</h3>
+                <iframe src="http://localhost:5173/dns.html" class="page-preview"></iframe>
+                <div id="dns-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- DERP服务器页面 -->
+            <div>
+                <h3>🔗 DERP服务器</h3>
+                <iframe src="http://localhost:5173/derp.html" class="page-preview"></iframe>
+                <div id="derp-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 网络监控页面 -->
+            <div>
+                <h3>📊 网络监控</h3>
+                <iframe src="http://localhost:5173/monitoring.html" class="page-preview"></iframe>
+                <div id="monitoring-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 告警管理页面 -->
+            <div>
+                <h3>🚨 告警管理</h3>
+                <iframe src="http://localhost:5173/alerts.html" class="page-preview"></iframe>
+                <div id="alerts-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 日志管理页面 -->
+            <div>
+                <h3>📋 日志管理</h3>
+                <iframe src="http://localhost:5173/logs.html" class="page-preview"></iframe>
+                <div id="logs-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 报表管理页面 -->
+            <div>
+                <h3>📈 报表管理</h3>
+                <iframe src="http://localhost:5173/reports.html" class="page-preview"></iframe>
+                <div id="reports-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- ACL规则页面 -->
+            <div>
+                <h3>🛡️ ACL规则</h3>
+                <iframe src="http://localhost:5173/acl.html" class="page-preview"></iframe>
+                <div id="acl-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 认证管理页面 -->
+            <div>
+                <h3>🔐 认证管理</h3>
+                <iframe src="http://localhost:5173/auth.html" class="page-preview"></iframe>
+                <div id="auth-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- SSH访问页面 -->
+            <div>
+                <h3>🔑 SSH访问</h3>
+                <iframe src="http://localhost:5173/ssh.html" class="page-preview"></iframe>
+                <div id="ssh-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 服务暴露页面 -->
+            <div>
+                <h3>🌍 服务暴露</h3>
+                <iframe src="http://localhost:5173/serve.html" class="page-preview"></iframe>
+                <div id="serve-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- Kubernetes页面 -->
+            <div>
+                <h3>☸️ Kubernetes</h3>
+                <iframe src="http://localhost:5173/k8s.html" class="page-preview"></iframe>
+                <div id="k8s-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 密钥轮换页面 -->
+            <div>
+                <h3>🔄 密钥轮换</h3>
+                <iframe src="http://localhost:5173/key-rotation.html" class="page-preview"></iframe>
+                <div id="key-rotation-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- SDK和Webhook页面 -->
+            <div>
+                <h3>🔧 SDK和Webhook</h3>
+                <iframe src="http://localhost:5173/sdk.html" class="page-preview"></iframe>
+                <div id="sdk-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- Taildrop页面 -->
+            <div>
+                <h3>📁 Taildrop</h3>
+                <iframe src="http://localhost:5173/taildrop.html" class="page-preview"></iframe>
+                <div id="taildrop-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 用户组页面 -->
+            <div>
+                <h3>👥 用户组</h3>
+                <iframe src="http://localhost:5173/groups.html" class="page-preview"></iframe>
+                <div id="groups-status" class="status">⏳ 检查中...</div>
+            </div>
+
+            <!-- 系统设置页面 -->
+            <div>
+                <h3>⚙️ 系统设置</h3>
+                <iframe src="http://localhost:5173/settings.html" class="page-preview"></iframe>
+                <div id="settings-status" class="status">⏳ 检查中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const FRONTEND_BASE = 'http://localhost:5173';
+        
+        // 页面列表
+        const pages = [
+            { id: 'devices', name: '设备管理', path: '/devices.html' },
+            { id: 'users', name: '用户管理', path: '/users.html' },
+            { id: 'routes', name: '路由管理', path: '/routes.html' },
+            { id: 'dns', name: 'DNS管理', path: '/dns.html' },
+            { id: 'derp', name: 'DERP服务器', path: '/derp.html' },
+            { id: 'monitoring', name: '网络监控', path: '/monitoring.html' },
+            { id: 'alerts', name: '告警管理', path: '/alerts.html' },
+            { id: 'logs', name: '日志管理', path: '/logs.html' },
+            { id: 'reports', name: '报表管理', path: '/reports.html' },
+            { id: 'acl', name: 'ACL规则', path: '/acl.html' },
+            { id: 'auth', name: '认证管理', path: '/auth.html' },
+            { id: 'ssh', name: 'SSH访问', path: '/ssh.html' },
+            { id: 'serve', name: '服务暴露', path: '/serve.html' },
+            { id: 'k8s', name: 'Kubernetes', path: '/k8s.html' },
+            { id: 'key-rotation', name: '密钥轮换', path: '/key-rotation.html' },
+            { id: 'sdk', name: 'SDK和Webhook', path: '/sdk.html' },
+            { id: 'taildrop', name: 'Taildrop', path: '/taildrop.html' },
+            { id: 'groups', name: '用户组', path: '/groups.html' },
+            { id: 'settings', name: '系统设置', path: '/settings.html' }
+        ];
+
+        async function verifyPageStyle(page) {
+            try {
+                const response = await fetch(`${FRONTEND_BASE}${page.path}`);
+                const html = await response.text();
+                
+                // 检查是否使用了统一的样式
+                const hasUnifiedStyle = html.includes('bg-white min-h-screen') && 
+                                       html.includes('px-6 pt-6') &&
+                                       html.includes('text-2xl font-bold text-gray-900');
+                
+                const statusElement = document.getElementById(`${page.id}-status`);
+                if (hasUnifiedStyle) {
+                    statusElement.className = 'status success';
+                    statusElement.textContent = '✅ 样式统一';
+                    return true;
+                } else {
+                    statusElement.className = 'status error';
+                    statusElement.textContent = '❌ 样式不统一';
+                    return false;
+                }
+            } catch (error) {
+                const statusElement = document.getElementById(`${page.id}-status`);
+                statusElement.className = 'status error';
+                statusElement.textContent = '❌ 加载失败';
+                return false;
+            }
+        }
+
+        async function verifyAllPages() {
+            const resultsDiv = document.getElementById('verification-results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<p>🔍 正在验证所有页面样式...</p>';
+            
+            let totalPages = pages.length;
+            let unifiedPages = 0;
+            let results = [];
+            
+            for (const page of pages) {
+                const isUnified = await verifyPageStyle(page);
+                if (isUnified) {
+                    unifiedPages++;
+                }
+                results.push({
+                    name: page.name,
+                    unified: isUnified
+                });
+                
+                // 添加小延迟避免请求过快
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            // 显示结果
+            const successRate = Math.round((unifiedPages / totalPages) * 100);
+            let resultHtml = `
+                <h3>📊 验证结果</h3>
+                <p><strong>总页面数:</strong> ${totalPages}</p>
+                <p><strong>样式统一页面:</strong> ${unifiedPages}</p>
+                <p><strong>统一率:</strong> ${successRate}%</p>
+                <hr>
+                <h4>详细结果:</h4>
+                <ul>
+            `;
+            
+            results.forEach(result => {
+                const icon = result.unified ? '✅' : '❌';
+                resultHtml += `<li>${icon} ${result.name}</li>`;
+            });
+            
+            resultHtml += '</ul>';
+            
+            if (successRate === 100) {
+                resultHtml += '<p style="color: green; font-weight: bold;">🎉 所有页面样式已统一！</p>';
+            } else if (successRate >= 80) {
+                resultHtml += '<p style="color: orange; font-weight: bold;">⚠️ 大部分页面样式已统一，还有少数页面需要调整。</p>';
+            } else {
+                resultHtml += '<p style="color: red; font-weight: bold;">❌ 还有较多页面需要样式统一。</p>';
+            }
+            
+            resultsDiv.innerHTML = resultHtml;
+        }
+
+        function showAllPages() {
+            // 所有iframe已经在页面中显示了
+            alert('所有页面预览已显示在下方！您可以直观地比较各个页面的样式是否一致。');
+        }
+
+        // 页面加载完成后自动开始验证
+        window.onload = function() {
+            setTimeout(() => {
+                verifyAllPages();
+            }, 2000); // 等待2秒让iframe加载完成
+        };
+    </script>
+</body>
+</html>

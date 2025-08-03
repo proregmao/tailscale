@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Tailscale Unlimited Control 前端功能测试</h1>
+    
+    <div class="test-section">
+        <h2>📊 服务状态检查</h2>
+        <button class="test-button" onclick="checkServices()">检查服务状态</button>
+        <div id="service-status" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚨 告警管理API测试</h2>
+        <button class="test-button" onclick="testAlertRules()">测试告警规则API</button>
+        <button class="test-button" onclick="testNotifications()">测试通知设置API</button>
+        <button class="test-button" onclick="testAlertHistory()">测试告警历史API</button>
+        <div id="alert-results" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 日志管理API测试</h2>
+        <button class="test-button" onclick="testLogs()">测试日志列表API</button>
+        <button class="test-button" onclick="testLogExport()">测试日志导出API</button>
+        <div id="log-results" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📈 报表管理API测试</h2>
+        <button class="test-button" onclick="testUsageReport()">测试使用情况报表</button>
+        <button class="test-button" onclick="testPerformanceReport()">测试性能报表</button>
+        <button class="test-button" onclick="testDeviceReport()">测试设备报表</button>
+        <button class="test-button" onclick="testNetworkReport()">测试网络报表</button>
+        <div id="report-results" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🌐 前端页面访问测试</h2>
+        <button class="test-button" onclick="openPage('alerts.html')">打开告警管理页面</button>
+        <button class="test-button" onclick="openPage('logs.html')">打开日志管理页面</button>
+        <button class="test-button" onclick="openPage('reports.html')">打开报表管理页面</button>
+        <div id="page-results" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v1';
+        const FRONTEND_BASE = 'http://localhost:5174';
+
+        function showResult(elementId, message, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            element.innerHTML = message;
+        }
+
+        async function checkServices() {
+            try {
+                // 检查后端
+                const backendResponse = await fetch(`${API_BASE}/health`);
+                const backendStatus = backendResponse.ok ? '✅ 运行中' : '❌ 异常';
+                
+                // 检查前端
+                const frontendResponse = await fetch(`${FRONTEND_BASE}/`);
+                const frontendStatus = frontendResponse.ok ? '✅ 运行中' : '❌ 异常';
+                
+                showResult('service-status', `
+                    <strong>服务状态检查结果：</strong><br>
+                    后端服务 (8080): ${backendStatus}<br>
+                    前端服务 (5174): ${frontendStatus}
+                `);
+            } catch (error) {
+                showResult('service-status', `❌ 服务检查失败: ${error.message}`, false);
+            }
+        }
+
+        async function testAlertRules() {
+            try {
+                const response = await fetch(`${API_BASE}/alerts/rules`);
+                const data = await response.json();
+                showResult('alert-results', `✅ 告警规则API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('alert-results', `❌ 告警规则API失败: ${error.message}`, false);
+            }
+        }
+
+        async function testNotifications() {
+            try {
+                const response = await fetch(`${API_BASE}/alerts/notifications`);
+                const data = await response.json();
+                showResult('alert-results', `✅ 通知设置API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('alert-results', `❌ 通知设置API失败: ${error.message}`, false);
+            }
+        }
+
+        async function testAlertHistory() {
+            try {
+                const response = await fetch(`${API_BASE}/alerts/history`);
+                const data = await response.json();
+                showResult('alert-results', `✅ 告警历史API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('alert-results', `❌ 告警历史API失败: ${error.message}`, false);
+            }
+        }
+
+        async function testLogs() {
+            try {
+                const response = await fetch(`${API_BASE}/logs`);
+                const data = await response.json();
+                showResult('log-results', `✅ 日志列表API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('log-results', `❌ 日志列表API失败: ${error.message}`, false);
+            }
+        }
+
+        async function testLogExport() {
+            try {
+                const response = await fetch(`${API_BASE}/logs/export?format=json`);
+                const data = await response.json();
+                showResult('log-results', `✅ 日志导出API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('log-results', `❌ 日志导出API失败: ${error.message}`, false);
+            }
+        }
+
+        async function testUsageReport() {
+            try {
+                const response = await fetch(`${API_BASE}/reports/usage`);
+                const data = await response.json();
+                showResult('report-results', `✅ 使用情况报表API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('report-results', `❌ 使用情况报表API失败: ${error.message}`, false);
+            }
+        }
+
+        async function testPerformanceReport() {
+            try {
+                const response = await fetch(`${API_BASE}/reports/performance`);
+                const data = await response.json();
+                showResult('report-results', `✅ 性能报表API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('report-results', `❌ 性能报表API失败: ${error.message}`, false);
+            }
+        }
+
+        async function testDeviceReport() {
+            try {
+                const response = await fetch(`${API_BASE}/reports/devices`);
+                const data = await response.json();
+                showResult('report-results', `✅ 设备报表API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('report-results', `❌ 设备报表API失败: ${error.message}`, false);
+            }
+        }
+
+        async function testNetworkReport() {
+            try {
+                const response = await fetch(`${API_BASE}/reports/network`);
+                const data = await response.json();
+                showResult('report-results', `✅ 网络报表API正常: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResult('report-results', `❌ 网络报表API失败: ${error.message}`, false);
+            }
+        }
+
+        function openPage(page) {
+            const url = `${FRONTEND_BASE}/${page}`;
+            window.open(url, '_blank');
+            showResult('page-results', `✅ 已打开页面: ${url}`);
+        }
+
+        // 页面加载时自动检查服务状态
+        window.onload = function() {
+            checkServices();
+        };
+    </script>
+</body>
+</html>

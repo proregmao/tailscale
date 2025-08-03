@@ -1,0 +1,47 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "python3",
+      "args": ["tools/context7_server.py"],
+      "env": {
+        "PYTHONPATH": "."
+      }
+    },
+    "playwright": {
+      "command": "python3",
+      "args": ["tools/playwright_server.py"],
+      "env": {
+        "PYTHONPATH": "."
+      }
+    },
+    "sequential": {
+      "command": "python3",
+      "args": ["tools/sequential_server.py"],
+      "env": {
+        "PYTHONPATH": "."
+      }
+    }
+  },
+  "tools": {
+    "context7": {
+      "name": "Context7文档检索工具",
+      "description": "用于检索和查询代码库文档、库信息的工具",
+      "enabled": true
+    },
+    "playwright": {
+      "name": "Playwright浏览器自动化工具", 
+      "description": "用于浏览器自动化、网页操作和测试的工具",
+      "enabled": true
+    },
+    "sequential": {
+      "name": "Sequential顺序思考工具",
+      "description": "用于结构化思考和问题分析的工具",
+      "enabled": true
+    }
+  },
+  "config": {
+    "logLevel": "info",
+    "timeout": 30000,
+    "maxRetries": 3
+  }
+}

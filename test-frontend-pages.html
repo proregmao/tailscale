@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前端页面全面测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .test-button.success {
+            background: #28a745;
+        }
+        .test-button.error {
+            background: #dc3545;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-pending { background: #ffc107; }
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .iframe-container {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Tailscale Unlimited Control 前端页面全面测试</h1>
+    
+    <div class="test-section">
+        <h2>📊 测试总览</h2>
+        <div id="test-summary">
+            <p><span class="status-indicator status-pending"></span>总测试项: <span id="total-tests">0</span></p>
+            <p><span class="status-indicator status-success"></span>通过: <span id="passed-tests">0</span></p>
+            <p><span class="status-indicator status-error"></span>失败: <span id="failed-tests">0</span></p>
+            <p><span class="status-indicator status-pending"></span>进度: <span id="progress">0%</span></p>
+        </div>
+        <button class="test-button" onclick="runAllTests()">🚀 运行所有测试</button>
+        <button class="test-button" onclick="clearResults()">🧹 清空结果</button>
+    </div>
+
+    <div class="test-grid">
+        <!-- 主页测试 -->
+        <div class="test-section">
+            <h2>🏠 主页测试</h2>
+            <button class="test-button" onclick="testPage('/', '主页')">测试主页</button>
+            <button class="test-button" onclick="testNavigation()">测试导航</button>
+            <div id="home-results" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 设备管理页面测试 -->
+        <div class="test-section">
+            <h2>📱 设备管理测试</h2>
+            <button class="test-button" onclick="testPage('/devices', '设备管理')">测试设备页面</button>
+            <button class="test-button" onclick="testDeviceActions()">测试设备操作</button>
+            <div id="devices-results" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 用户管理页面测试 -->
+        <div class="test-section">
+            <h2>👥 用户管理测试</h2>
+            <button class="test-button" onclick="testPage('/users', '用户管理')">测试用户页面</button>
+            <button class="test-button" onclick="testUserActions()">测试用户操作</button>
+            <div id="users-results" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 路由管理页面测试 -->
+        <div class="test-section">
+            <h2>🛣️ 路由管理测试</h2>
+            <button class="test-button" onclick="testPage('/routes', '路由管理')">测试路由页面</button>
+            <button class="test-button" onclick="testRouteActions()">测试路由操作</button>
+            <div id="routes-results" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- DNS管理页面测试 -->
+        <div class="test-section">
+            <h2>🌐 DNS管理测试</h2>
+            <button class="test-button" onclick="testPage('/dns', 'DNS管理')">测试DNS页面</button>
+            <button class="test-button" onclick="testDNSActions()">测试DNS操作</button>
+            <div id="dns-results" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 告警管理页面测试 -->
+        <div class="test-section">
+            <h2>🚨 告警管理测试</h2>
+            <button class="test-button" onclick="testPage('/alerts.html', '告警管理')">测试告警页面</button>
+            <button class="test-button" onclick="testAlertTabs()">测试告警标签页</button>
+            <div id="alerts-results" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 日志管理页面测试 -->
+        <div class="test-section">
+            <h2>📋 日志管理测试</h2>
+            <button class="test-button" onclick="testPage('/logs.html', '日志管理')">测试日志页面</button>
+            <button class="test-button" onclick="testLogActions()">测试日志操作</button>
+            <div id="logs-results" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 报表管理页面测试 -->
+        <div class="test-section">
+            <h2>📈 报表管理测试</h2>
+            <button class="test-button" onclick="testPage('/reports.html', '报表管理')">测试报表页面</button>
+            <button class="test-button" onclick="testReportCharts()">测试报表图表</button>
+            <div id="reports-results" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- 页面预览区域 -->
+    <div class="test-section">
+        <h2>🖥️ 页面预览</h2>
+        <div class="iframe-container">
+            <iframe id="preview-iframe" src="http://localhost:5173"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const FRONTEND_BASE = 'http://localhost:5173';
+        const API_BASE = 'http://localhost:8080/api/v1';
+        
+        let totalTests = 0;
+        let passedTests = 0;
+        let failedTests = 0;
+
+        function updateSummary() {
+            document.getElementById('total-tests').textContent = totalTests;
+            document.getElementById('passed-tests').textContent = passedTests;
+            document.getElementById('failed-tests').textContent = failedTests;
+            document.getElementById('progress').textContent = 
+                totalTests > 0 ? Math.round((passedTests + failedTests) / totalTests * 100) + '%' : '0%';
+        }
+
+        function showResult(elementId, message, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            element.innerHTML = message;
+            
+            if (isSuccess) {
+                passedTests++;
+            } else {
+                failedTests++;
+            }
+            updateSummary();
+        }
+
+        function addResult(elementId, message, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            if (!element.className.includes('result')) {
+                element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            }
+            element.innerHTML += message + '<br>';
+            
+            totalTests++;
+            if (isSuccess) {
+                passedTests++;
+            } else {
+                failedTests++;
+            }
+            updateSummary();
+        }
+
+        async function testPage(path, pageName) {
+            try {
+                const url = `${FRONTEND_BASE}${path}`;
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    const hasTitle = html.includes('<title>') || html.includes('Tailscale');
+                    const hasContent = html.length > 1000;
+                    
+                    if (hasTitle && hasContent) {
+                        addResult(`${path.replace(/[^a-zA-Z]/g, '')}-results`, 
+                            `✅ ${pageName}页面加载成功 (${response.status})`, true);
+                        
+                        // 更新预览iframe
+                        document.getElementById('preview-iframe').src = url;
+                    } else {
+                        addResult(`${path.replace(/[^a-zA-Z]/g, '')}-results`, 
+                            `⚠️ ${pageName}页面内容不完整`, false);
+                    }
+                } else {
+                    addResult(`${path.replace(/[^a-zA-Z]/g, '')}-results`, 
+                        `❌ ${pageName}页面加载失败 (${response.status})`, false);
+                }
+            } catch (error) {
+                addResult(`${path.replace(/[^a-zA-Z]/g, '')}-results`, 
+                    `❌ ${pageName}页面测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function testNavigation() {
+            try {
+                const response = await fetch(`${FRONTEND_BASE}/`);
+                const html = await response.text();
+                
+                const hasNavigation = html.includes('nav') || html.includes('menu');
+                const hasLinks = html.includes('href=') && html.includes('devices');
+                
+                if (hasNavigation && hasLinks) {
+                    addResult('home-results', '✅ 导航菜单正常', true);
+                } else {
+                    addResult('home-results', '❌ 导航菜单缺失或不完整', false);
+                }
+            } catch (error) {
+                addResult('home-results', `❌ 导航测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function testDeviceActions() {
+            try {
+                const response = await fetch(`${API_BASE}/devices`);
+                const data = await response.json();
+                
+                if (data.success && Array.isArray(data.data)) {
+                    addResult('devices-results', '✅ 设备数据加载正常', true);
+                } else {
+                    addResult('devices-results', '❌ 设备数据格式错误', false);
+                }
+            } catch (error) {
+                addResult('devices-results', `❌ 设备操作测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function testUserActions() {
+            try {
+                const response = await fetch(`${API_BASE}/users`);
+                const data = await response.json();
+                
+                if (data.success && Array.isArray(data.data)) {
+                    addResult('users-results', '✅ 用户数据加载正常', true);
+                } else {
+                    addResult('users-results', '❌ 用户数据格式错误', false);
+                }
+            } catch (error) {
+                addResult('users-results', `❌ 用户操作测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function testRouteActions() {
+            try {
+                const response = await fetch(`${API_BASE}/routes`);
+                const data = await response.json();
+                
+                if (data.success && Array.isArray(data.data)) {
+                    addResult('routes-results', '✅ 路由数据加载正常', true);
+                } else {
+                    addResult('routes-results', '❌ 路由数据格式错误', false);
+                }
+            } catch (error) {
+                addResult('routes-results', `❌ 路由操作测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function testDNSActions() {
+            try {
+                const configResponse = await fetch(`${API_BASE}/dns/config`);
+                const recordsResponse = await fetch(`${API_BASE}/dns/records`);
+                
+                const configData = await configResponse.json();
+                const recordsData = await recordsResponse.json();
+                
+                if (configData.success && recordsData.success) {
+                    addResult('dns-results', '✅ DNS配置和记录加载正常', true);
+                } else {
+                    addResult('dns-results', '❌ DNS数据加载失败', false);
+                }
+            } catch (error) {
+                addResult('dns-results', `❌ DNS操作测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function testAlertTabs() {
+            try {
+                const rulesResponse = await fetch(`${API_BASE}/alerts/rules`);
+                const historyResponse = await fetch(`${API_BASE}/alerts/history`);
+                const notificationsResponse = await fetch(`${API_BASE}/alerts/notifications`);
+                
+                const rulesData = await rulesResponse.json();
+                const historyData = await historyResponse.json();
+                const notificationsData = await notificationsResponse.json();
+                
+                if (rulesData.success && historyData.success && notificationsData.success) {
+                    addResult('alerts-results', '✅ 告警所有标签页数据正常', true);
+                } else {
+                    addResult('alerts-results', '❌ 告警标签页数据不完整', false);
+                }
+            } catch (error) {
+                addResult('alerts-results', `❌ 告警标签页测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function testLogActions() {
+            try {
+                const logsResponse = await fetch(`${API_BASE}/logs`);
+                const exportResponse = await fetch(`${API_BASE}/logs/export?format=json`);
+                
+                const logsData = await logsResponse.json();
+                const exportData = await exportResponse.json();
+                
+                if (logsData.success && exportData.success) {
+                    addResult('logs-results', '✅ 日志列表和导出功能正常', true);
+                } else {
+                    addResult('logs-results', '❌ 日志功能不完整', false);
+                }
+            } catch (error) {
+                addResult('logs-results', `❌ 日志操作测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function testReportCharts() {
+            try {
+                const usageResponse = await fetch(`${API_BASE}/reports/usage`);
+                const performanceResponse = await fetch(`${API_BASE}/reports/performance`);
+                const devicesResponse = await fetch(`${API_BASE}/reports/devices`);
+                const networkResponse = await fetch(`${API_BASE}/reports/network`);
+                
+                const usageData = await usageResponse.json();
+                const performanceData = await performanceResponse.json();
+                const devicesData = await devicesResponse.json();
+                const networkData = await networkResponse.json();
+                
+                if (usageData.success && performanceData.success && 
+                    devicesData.success && networkData.success) {
+                    addResult('reports-results', '✅ 所有报表数据加载正常', true);
+                } else {
+                    addResult('reports-results', '❌ 报表数据不完整', false);
+                }
+            } catch (error) {
+                addResult('reports-results', `❌ 报表图表测试失败: ${error.message}`, false);
+            }
+        }
+
+        async function runAllTests() {
+            clearResults();
+            
+            // 页面加载测试
+            await testPage('/', '主页');
+            await testPage('/devices', '设备管理');
+            await testPage('/users', '用户管理');
+            await testPage('/routes', '路由管理');
+            await testPage('/dns', 'DNS管理');
+            await testPage('/alerts.html', '告警管理');
+            await testPage('/logs.html', '日志管理');
+            await testPage('/reports.html', '报表管理');
+            
+            // 功能测试
+            await testNavigation();
+            await testDeviceActions();
+            await testUserActions();
+            await testRouteActions();
+            await testDNSActions();
+            await testAlertTabs();
+            await testLogActions();
+            await testReportCharts();
+            
+            // 显示最终结果
+            setTimeout(() => {
+                const successRate = totalTests > 0 ? (passedTests / totalTests * 100).toFixed(1) : 0;
+                alert(`🎉 测试完成！\n\n总测试项: ${totalTests}\n通过: ${passedTests}\n失败: ${failedTests}\n成功率: ${successRate}%`);
+            }, 1000);
+        }
+
+        function clearResults() {
+            const results = document.querySelectorAll('.result');
+            results.forEach(result => {
+                result.style.display = 'none';
+                result.innerHTML = '';
+            });
+            
+            totalTests = 0;
+            passedTests = 0;
+            failedTests = 0;
+            updateSummary();
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            updateSummary();
+        };
+    </script>
+</body>
+</html>
