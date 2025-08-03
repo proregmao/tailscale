@@ -43,12 +43,61 @@ check_command() {
     fi
 }
 
+# 安装GitHub CLI
+install_github_cli() {
+    log_info "安装GitHub CLI..."
+
+    if command -v apt &> /dev/null; then
+        # Ubuntu/Debian
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+        sudo apt update && sudo apt install -y gh
+    elif command -v yum &> /dev/null; then
+        # CentOS/RHEL
+        sudo yum install -y gh
+    elif command -v brew &> /dev/null; then
+        # macOS
+        brew install gh
+    else
+        log_error "不支持的系统，请手动安装GitHub CLI"
+        return 1
+    fi
+
+    if command -v gh &> /dev/null; then
+        log_success "GitHub CLI安装成功"
+        log_info "请运行 'gh auth login' 进行认证"
+        return 0
+    else
+        log_error "GitHub CLI安装失败"
+        return 1
+    fi
+}
+
 # 检查必要工具
 check_dependencies() {
     log_info "检查必要工具..."
     check_command "git"
     check_command "curl"
-    log_success "所有必要工具已安装"
+
+    # 检查GitHub CLI（可选）
+    if ! command -v gh &> /dev/null; then
+        log_warning "GitHub CLI未安装，将无法自动创建仓库"
+        echo -n "是否现在安装GitHub CLI？[y/N]: "
+        read -r install_gh
+        if [[ "$install_gh" =~ ^[Yy]$ ]]; then
+            if install_github_cli; then
+                echo -n "是否现在进行GitHub认证？[y/N]: "
+                read -r auth_gh
+                if [[ "$auth_gh" =~ ^[Yy]$ ]]; then
+                    gh auth login
+                fi
+            fi
+        fi
+    else
+        log_success "GitHub CLI已安装"
+    fi
+
+    log_success "工具检查完成"
 }
 
 # 检查SSH连接
@@ -437,48 +486,142 @@ handle_push_error() {
     fi
 }
 
+# 使用GitHub API创建仓库
+create_repo_with_api() {
+    local repo_name=$1
+    local repo_description="$2"
+
+    log_info "使用GitHub API创建仓库..."
+
+    # 检查是否有GitHub token
+    if [[ -z "$GITHUB_TOKEN" ]]; then
+        log_warning "未设置GITHUB_TOKEN环境变量"
+        return 1
+    fi
+
+    local api_data="{\"name\":\"$repo_name\",\"description\":\"$repo_description\",\"private\":false}"
+
+    local response=$(curl -s -X POST \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        -d "$api_data" \
+        "https://api.github.com/user/repos")
+
+    if echo "$response" | grep -q '"id"'; then
+        log_success "仓库创建成功"
+        return 0
+    else
+        log_error "API创建失败: $(echo "$response" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)"
+        return 1
+    fi
+}
+
+# 使用curl创建仓库（无token）
+create_repo_with_curl() {
+    local repo_name=$1
+
+    log_info "尝试使用SSH方式创建仓库..."
+
+    # 创建一个临时的空仓库推送
+    if git push origin main 2>&1 | grep -q "create a pull request"; then
+        log_success "仓库已自动创建"
+        return 0
+    fi
+
+    return 1
+}
+
 # 交互式创建GitHub仓库
 create_github_repo_interactive() {
     local repo_name=$1
 
     log_info "尝试创建GitHub仓库: $repo_name"
 
-    # 检查是否有GitHub CLI
+    # 方法1: 尝试GitHub CLI
     if command -v gh &> /dev/null; then
         log_info "使用GitHub CLI创建仓库..."
         echo -n "请输入仓库描述 (可选): "
         read -r repo_description
 
+        local gh_cmd="gh repo create $repo_name --public"
         if [[ -n "$repo_description" ]]; then
-            if gh repo create "$repo_name" --public --description "$repo_description"; then
-                log_success "仓库创建成功"
-                return 0
-            else
-                log_error "GitHub CLI创建失败"
-                return 1
-            fi
-        else
-            if gh repo create "$repo_name" --public; then
-                log_success "仓库创建成功"
-                return 0
-            else
-                log_error "GitHub CLI创建失败"
-                return 1
-            fi
+            gh_cmd="$gh_cmd --description \"$repo_description\""
         fi
-    else
-        log_warning "GitHub CLI未安装，请手动创建仓库"
-        echo
-        log_info "手动创建步骤："
-        echo "1. 访问: https://github.com/new"
-        echo "2. 仓库名: $repo_name"
-        echo "3. 设置为公开仓库"
-        echo "4. 不要初始化README、.gitignore或许可证"
-        echo
-        echo -n "创建完成后按回车继续..."
-        read -r
-        return 0
+
+        if eval "$gh_cmd"; then
+            log_success "GitHub CLI创建成功"
+            return 0
+        else
+            log_warning "GitHub CLI创建失败，尝试其他方法..."
+        fi
     fi
+
+    # 方法2: 尝试GitHub API
+    if [[ -n "$GITHUB_TOKEN" ]]; then
+        echo -n "请输入仓库描述 (可选): "
+        read -r repo_description
+        if create_repo_with_api "$repo_name" "$repo_description"; then
+            return 0
+        else
+            log_warning "GitHub API创建失败，尝试其他方法..."
+        fi
+    fi
+
+    # 方法3: 提供多种创建选项
+    echo
+    log_warning "自动创建失败，请选择创建方式："
+    echo "1) 手动在浏览器中创建"
+    echo "2) 安装GitHub CLI后自动创建"
+    echo "3) 设置GitHub Token后自动创建"
+    echo "4) 跳过创建，稍后手动处理"
+    echo -n "请选择 [1-4]: "
+    read -r create_choice
+
+    case $create_choice in
+        1)
+            log_info "手动创建步骤："
+            echo "1. 访问: https://github.com/new"
+            echo "2. 仓库名: $repo_name"
+            echo "3. 设置为公开仓库"
+            echo "4. 不要初始化README、.gitignore或许可证"
+            echo "5. 点击 'Create repository'"
+            echo
+            echo -n "创建完成后按回车继续..."
+            read -r
+            return 0
+            ;;
+        2)
+            log_info "安装GitHub CLI："
+            echo "curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg"
+            echo "echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main\" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null"
+            echo "sudo apt update && sudo apt install gh"
+            echo "gh auth login"
+            echo
+            echo -n "安装完成后按回车重新运行脚本..."
+            read -r
+            return 1
+            ;;
+        3)
+            log_info "设置GitHub Token："
+            echo "1. 访问: https://github.com/settings/tokens"
+            echo "2. 点击 'Generate new token (classic)'"
+            echo "3. 勾选 'repo' 权限"
+            echo "4. 复制生成的token"
+            echo "5. 运行: export GITHUB_TOKEN=your_token_here"
+            echo
+            echo -n "设置完成后按回车重新运行脚本..."
+            read -r
+            return 1
+            ;;
+        4)
+            log_info "跳过仓库创建，请稍后手动创建"
+            return 1
+            ;;
+        *)
+            log_error "无效选择"
+            return 1
+            ;;
+    esac
 }
 
 # 推送到GitHub（带错误处理）
