@@ -306,42 +306,253 @@ add_remote() {
     log_success "远程仓库配置完成: $remote_url"
 }
 
-# 推送到GitHub
+# 处理推送错误
+handle_push_error() {
+    local repo_name=$1
+    local error_output="$2"
+
+    echo
+    log_error "推送失败！"
+    echo "错误信息: $error_output"
+    echo
+
+    if [[ "$error_output" =~ "Repository not found" ]]; then
+        log_warning "GitHub仓库不存在，请选择解决方案："
+        echo "1) 创建新的GitHub仓库"
+        echo "2) 使用不同的项目名称"
+        echo "3) 手动创建仓库后重试"
+        echo "4) 退出脚本"
+        echo -n "请选择 [1-4]: "
+        read -r choice
+
+        case $choice in
+            1)
+                create_github_repo_interactive "$repo_name"
+                return $?
+                ;;
+            2)
+                echo -n "请输入新的项目名称: "
+                read -r new_name
+                if [[ -n "$new_name" ]]; then
+                    # 更新远程仓库URL
+                    git remote set-url origin "git@github.com:${DEFAULT_USERNAME}/${new_name}.git"
+                    log_info "已更新远程仓库为: $new_name"
+                    return 0
+                else
+                    log_error "项目名称不能为空"
+                    return 1
+                fi
+                ;;
+            3)
+                echo
+                log_info "请手动创建GitHub仓库："
+                echo "1. 访问: https://github.com/new"
+                echo "2. 仓库名: $repo_name"
+                echo "3. 设置为公开仓库"
+                echo "4. 不要初始化README、.gitignore或许可证"
+                echo
+                echo -n "创建完成后按回车继续..."
+                read -r
+                return 0
+                ;;
+            4)
+                log_info "用户选择退出"
+                exit 0
+                ;;
+            *)
+                log_error "无效选择"
+                return 1
+                ;;
+        esac
+    elif [[ "$error_output" =~ "Permission denied" ]]; then
+        log_warning "权限被拒绝，可能的解决方案："
+        echo "1) 检查SSH密钥配置"
+        echo "2) 重新设置SSH密钥"
+        echo "3) 退出脚本"
+        echo -n "请选择 [1-3]: "
+        read -r choice
+
+        case $choice in
+            1)
+                echo
+                log_info "请检查SSH密钥配置："
+                echo "1. 测试连接: ssh -T git@github.com"
+                echo "2. 检查密钥: ls -la ~/.ssh/"
+                echo "3. 查看公钥: cat ~/.ssh/id_ed25519.pub"
+                echo
+                echo -n "检查完成后按回车继续..."
+                read -r
+                return 0
+                ;;
+            2)
+                log_info "运行SSH设置脚本..."
+                if [[ -f "./setup-github-ssh.sh" ]]; then
+                    ./setup-github-ssh.sh
+                    return $?
+                else
+                    log_error "SSH设置脚本不存在"
+                    return 1
+                fi
+                ;;
+            3)
+                log_info "用户选择退出"
+                exit 0
+                ;;
+            *)
+                log_error "无效选择"
+                return 1
+                ;;
+        esac
+    else
+        log_warning "未知错误，可能的解决方案："
+        echo "1) 重试推送"
+        echo "2) 检查网络连接"
+        echo "3) 退出脚本"
+        echo -n "请选择 [1-3]: "
+        read -r choice
+
+        case $choice in
+            1)
+                return 0
+                ;;
+            2)
+                echo
+                log_info "请检查网络连接："
+                echo "1. 测试网络: ping github.com"
+                echo "2. 测试SSH: ssh -T git@github.com"
+                echo
+                echo -n "检查完成后按回车继续..."
+                read -r
+                return 0
+                ;;
+            3)
+                log_info "用户选择退出"
+                exit 0
+                ;;
+            *)
+                log_error "无效选择"
+                return 1
+                ;;
+        esac
+    fi
+}
+
+# 交互式创建GitHub仓库
+create_github_repo_interactive() {
+    local repo_name=$1
+
+    log_info "尝试创建GitHub仓库: $repo_name"
+
+    # 检查是否有GitHub CLI
+    if command -v gh &> /dev/null; then
+        log_info "使用GitHub CLI创建仓库..."
+        echo -n "请输入仓库描述 (可选): "
+        read -r repo_description
+
+        if [[ -n "$repo_description" ]]; then
+            if gh repo create "$repo_name" --public --description "$repo_description"; then
+                log_success "仓库创建成功"
+                return 0
+            else
+                log_error "GitHub CLI创建失败"
+                return 1
+            fi
+        else
+            if gh repo create "$repo_name" --public; then
+                log_success "仓库创建成功"
+                return 0
+            else
+                log_error "GitHub CLI创建失败"
+                return 1
+            fi
+        fi
+    else
+        log_warning "GitHub CLI未安装，请手动创建仓库"
+        echo
+        log_info "手动创建步骤："
+        echo "1. 访问: https://github.com/new"
+        echo "2. 仓库名: $repo_name"
+        echo "3. 设置为公开仓库"
+        echo "4. 不要初始化README、.gitignore或许可证"
+        echo
+        echo -n "创建完成后按回车继续..."
+        read -r
+        return 0
+    fi
+}
+
+# 推送到GitHub（带错误处理）
 push_to_github() {
     local is_update=$1
+    local repo_name=$2
+    local max_retries=3
+    local retry_count=0
 
-    log_info "推送到GitHub..."
+    while [[ $retry_count -lt $max_retries ]]; do
+        log_info "推送到GitHub... (尝试 $((retry_count + 1))/$max_retries)"
 
-    # 获取当前分支
-    current_branch=$(git branch --show-current 2>/dev/null || echo "main")
+        # 获取当前分支
+        current_branch=$(git branch --show-current 2>/dev/null || echo "main")
 
-    if [[ "$is_update" == "true" ]]; then
-        # 更新推送
-        log_info "推送分支: $current_branch"
+        # 执行推送
+        local push_output
+        local push_result
 
-        # 先拉取最新更改避免冲突
-        if git ls-remote --exit-code origin "$current_branch" &>/dev/null; then
-            log_info "拉取远程更新..."
-            git pull origin "$current_branch" --rebase || {
-                log_warning "自动合并失败，请手动解决冲突后重新运行脚本"
-                exit 1
-            }
+        if [[ "$is_update" == "true" ]]; then
+            # 更新推送
+            log_info "推送分支: $current_branch"
+
+            # 先拉取最新更改避免冲突
+            if git ls-remote --exit-code origin "$current_branch" &>/dev/null; then
+                log_info "拉取远程更新..."
+                if ! git pull origin "$current_branch" --rebase; then
+                    log_warning "自动合并失败，请手动解决冲突后重新运行脚本"
+                    return 1
+                fi
+            fi
+
+            push_output=$(git push origin "$current_branch" 2>&1)
+            push_result=$?
+        else
+            # 首次推送
+            if [[ "$current_branch" != "main" ]]; then
+                log_info "切换到main分支"
+                git branch -M main
+                current_branch="main"
+            fi
+
+            log_info "首次推送分支: $current_branch"
+            push_output=$(git push -u origin "$current_branch" 2>&1)
+            push_result=$?
         fi
 
-        git push origin "$current_branch"
-    else
-        # 首次推送
-        if [[ "$current_branch" != "main" ]]; then
-            log_info "切换到main分支"
-            git branch -M main
-            current_branch="main"
+        # 检查推送结果
+        if [[ $push_result -eq 0 ]]; then
+            log_success "推送完成！"
+            return 0
+        else
+            log_warning "推送失败 (尝试 $((retry_count + 1))/$max_retries)"
+
+            # 如果不是最后一次尝试，提供解决方案
+            if [[ $retry_count -lt $((max_retries - 1)) ]]; then
+                if handle_push_error "$repo_name" "$push_output"; then
+                    retry_count=$((retry_count + 1))
+                    continue
+                else
+                    return 1
+                fi
+            else
+                # 最后一次尝试失败
+                log_error "推送失败，已达到最大重试次数"
+                handle_push_error "$repo_name" "$push_output"
+                return 1
+            fi
         fi
 
-        log_info "首次推送分支: $current_branch"
-        git push -u origin "$current_branch"
-    fi
+        retry_count=$((retry_count + 1))
+    done
 
-    log_success "推送完成！"
+    return 1
 }
 
 # 显示结果
@@ -459,7 +670,7 @@ main() {
         add_remote "$repo_name"
         
         # 推送到GitHub
-        push_to_github "$is_update"
+        push_to_github "$is_update" "$repo_name"
         
         # 显示结果
         show_result "$repo_name"
@@ -467,9 +678,6 @@ main() {
         log_info "没有更改需要推送"
     fi
 }
-
-# 错误处理
-trap 'log_error "脚本执行失败，请检查错误信息"; exit 1' ERR
 
 # 执行主函数
 main "$@"

@@ -83,13 +83,29 @@ quick_push() {
     
     # 推送
     log_info "推送到远程仓库 ($current_branch)..."
-    
+
     # 如果远程分支存在，先拉取
     if git ls-remote --exit-code origin "$current_branch" &>/dev/null; then
-        git pull origin "$current_branch" --rebase
+        if ! git pull origin "$current_branch" --rebase; then
+            log_warning "拉取失败，可能有冲突需要手动解决"
+            echo -n "是否继续推送？[y/N]: "
+            read -r continue_push
+            if [[ ! "$continue_push" =~ ^[Yy]$ ]]; then
+                log_info "推送已取消"
+                return 1
+            fi
+        fi
     fi
-    
-    git push origin "$current_branch"
+
+    # 尝试推送
+    if ! git push origin "$current_branch"; then
+        log_error "推送失败！"
+        echo "可能的解决方案："
+        echo "1) 检查网络连接"
+        echo "2) 检查仓库权限"
+        echo "3) 运行完整推送脚本: ./push-to-github.sh"
+        return 1
+    fi
     
     log_success "推送完成！"
 }
