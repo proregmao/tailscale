@@ -479,8 +479,16 @@ handle_repo_not_found() {
     echo "1) 立即创建仓库"
     echo "2) 使用不同名称"
     echo "3) 强制创建并推送"
-    echo -n "请选择 [1-3]: "
-    read -r choice
+    echo -n "请选择 [1-3] (10秒后自动选择1): "
+
+    # 10秒超时，默认选择1
+    if read -t 10 -r choice; then
+        echo
+    else
+        echo
+        choice="1"
+        log_info "超时，自动选择创建仓库"
+    fi
 
     case $choice in
         1)
@@ -507,8 +515,15 @@ handle_permission_denied() {
     echo "1) 重新设置SSH密钥"
     echo "2) 检查SSH配置"
     echo "3) 使用HTTPS方式"
-    echo -n "请选择 [1-3]: "
-    read -r choice
+    echo -n "请选择 [1-3] (10秒后自动选择1): "
+
+    if read -t 10 -r choice; then
+        echo
+    else
+        echo
+        choice="1"
+        log_info "超时，自动选择重新设置SSH密钥"
+    fi
 
     case $choice in
         1)
