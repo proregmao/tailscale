@@ -395,33 +395,69 @@ ultimate_push() {
             current_branch="main"
         fi
 
-        # 尝试推送
+        # 尝试推送 (带超时)
         local push_output
         local push_success=false
 
         if [[ "$is_update" == "true" ]]; then
             # 先尝试拉取
-            if git ls-remote --exit-code origin "$current_branch" &>/dev/null; then
+            if timeout 30 git ls-remote --exit-code origin "$current_branch" &>/dev/null; then
                 log_info "拉取远程更新..."
-                git pull origin "$current_branch" --rebase 2>/dev/null || true
+                timeout 60 git pull origin "$current_branch" --rebase 2>/dev/null || true
             fi
 
-            if git push origin "$current_branch" 2>/dev/null; then
+            # 检查仓库大小，调整超时时间
+            local object_count=$(git rev-list --all --count 2>/dev/null || echo "0")
+            local timeout_seconds=300  # 默认5分钟
+
+            if [[ $object_count -gt 10000 ]]; then
+                timeout_seconds=900  # 大仓库15分钟
+                log_warning "检测到大仓库 ($object_count 个对象)，增加推送超时时间到15分钟"
+            elif [[ $object_count -gt 1000 ]]; then
+                timeout_seconds=600  # 中等仓库10分钟
+                log_info "检测到中等仓库 ($object_count 个对象)，推送超时时间10分钟"
+            fi
+
+            log_info "推送更新到远程仓库... (超时: ${timeout_seconds}秒)"
+            if timeout $timeout_seconds git push origin "$current_branch"; then
                 push_success=true
+                push_output="推送成功"
             else
-                push_output=$(git push origin "$current_branch" 2>&1 || true)
+                push_output=$(timeout $timeout_seconds git push origin "$current_branch" 2>&1 || echo "推送超时或失败")
             fi
         else
-            if git push -u origin "$current_branch" 2>/dev/null; then
+            # 检查仓库大小，调整超时时间
+            local object_count=$(git rev-list --all --count 2>/dev/null || echo "0")
+            local timeout_seconds=300  # 默认5分钟
+
+            if [[ $object_count -gt 10000 ]]; then
+                timeout_seconds=900  # 大仓库15分钟
+                log_warning "检测到大仓库 ($object_count 个对象)，增加推送超时时间到15分钟"
+            elif [[ $object_count -gt 1000 ]]; then
+                timeout_seconds=600  # 中等仓库10分钟
+                log_info "检测到中等仓库 ($object_count 个对象)，推送超时时间10分钟"
+            fi
+
+            log_info "首次推送到远程仓库... (超时: ${timeout_seconds}秒)"
+            if timeout $timeout_seconds git push -u origin "$current_branch"; then
                 push_success=true
+                push_output="首次推送成功"
             else
-                push_output=$(git push -u origin "$current_branch" 2>&1 || true)
+                push_output=$(timeout $timeout_seconds git push -u origin "$current_branch" 2>&1 || echo "推送超时或失败")
             fi
         fi
 
         if [[ "$push_success" == "true" ]]; then
             log_success "🎉 推送成功！"
-            return 0
+
+            # 验证推送是否真的成功
+            sleep 2
+            if timeout 30 git ls-remote --exit-code origin "$current_branch" &>/dev/null; then
+                log_success "✅ 推送验证成功！"
+                return 0
+            else
+                log_warning "推送可能未完全成功，继续重试..."
+            fi
         fi
 
         # 推送失败，分析错误并提供解决方案
