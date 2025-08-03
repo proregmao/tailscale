@@ -292,8 +292,16 @@ add_remote() {
     log_info "配置远程仓库: $repo_name"
     log_info "目标URL: $remote_url"
 
-    # 添加新的远程仓库
-    git remote add origin "$remote_url"
+    # 检查是否已有远程仓库
+    if git remote get-url origin &>/dev/null; then
+        # 更新现有远程仓库URL
+        git remote set-url origin "$remote_url"
+        log_info "更新远程仓库URL"
+    else
+        # 添加新的远程仓库
+        git remote add origin "$remote_url"
+        log_info "添加远程仓库"
+    fi
 
     log_success "远程仓库配置完成: $remote_url"
 }
