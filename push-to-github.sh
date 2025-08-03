@@ -51,9 +51,31 @@ check_dependencies() {
     log_success "所有必要工具已安装"
 }
 
+# 检查SSH连接
+check_ssh_connection() {
+    log_info "检查GitHub SSH连接..."
+
+    # 添加GitHub到known_hosts
+    if ! ssh-keygen -F github.com &>/dev/null; then
+        log_info "添加GitHub SSH密钥到known_hosts..."
+        ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
+    fi
+
+    # 简化的SSH连接测试
+    if timeout 5 ssh -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+        log_success "SSH连接正常"
+        return 0
+    else
+        log_warning "SSH连接测试超时或失败，继续执行"
+        log_info "如果推送失败，请检查SSH密钥配置"
+        return 1
+    fi
+}
+
 # 获取当前目录名作为项目名
 get_project_name() {
-    basename "$(pwd)"
+    local current_path=$(pwd)
+    basename "$current_path"
 }
 
 # 配置Git用户信息
@@ -93,9 +115,7 @@ check_github_repo() {
     local repo_name=$1
     local url="${GITHUB_BASE_URL}/${DEFAULT_USERNAME}/${repo_name}"
 
-    log_info "检查GitHub仓库是否存在: $repo_name"
-
-    # 使用GitHub API检查仓库
+    # 使用GitHub API检查仓库（静默检查）
     local api_url="https://api.github.com/repos/${DEFAULT_USERNAME}/${repo_name}"
     local response=$(curl -s -o /dev/null -w "%{http_code}" "$api_url")
 
@@ -132,45 +152,10 @@ create_github_repo() {
     fi
 }
 
-# 获取项目名称
+# 获取项目名称（重写版本）
 get_repo_name() {
     local default_name=$(get_project_name)
-
-    if check_github_repo "$default_name"; then
-        log_warning "GitHub仓库 '$default_name' 已存在"
-        echo "选择操作:"
-        echo "1) 使用现有仓库 (更新)"
-        echo "2) 输入新的项目名称"
-        echo -n "请选择 [1-2]: "
-        read -r choice
-
-        case $choice in
-            1)
-                echo "$default_name"
-                ;;
-            2)
-                echo -n "请输入新的项目名称: "
-                read -r new_name
-
-                if [[ -z "$new_name" ]]; then
-                    log_error "项目名称不能为空"
-                    exit 1
-                fi
-
-                if check_github_repo "$new_name"; then
-                    log_error "仓库 '$new_name' 也已存在，请选择其他名称"
-                    exit 1
-                fi
-                echo "$new_name"
-                ;;
-            *)
-                log_error "无效选择"
-                exit 1
-                ;;
-        esac
-    else
-        echo "$default_name"
-    fi
+    echo "$default_name"
 }
 
 # 添加文件到Git
@@ -199,7 +184,7 @@ Thumbs.db
 # 依赖目录
 node_modules/
 vendor/
-
+frr/
 # 构建输出
 build/
 dist/
@@ -231,51 +216,85 @@ EOF
     log_success "文件添加完成"
 }
 
+# 生成默认提交信息
+generate_default_commit_message() {
+    local is_update=$1
+    local repo_name=$2
+
+    if [[ "$is_update" == "true" ]]; then
+        # 更新时使用当前日期时间
+        echo "Update $(date '+%Y-%m-%d %H:%M:%S')"
+    else
+        # 首次提交
+        echo "Initial commit for $repo_name"
+    fi
+}
+
 # 提交更改
 commit_changes() {
     local repo_name=$1
     local is_update=$2
-    
+
     # 检查是否有更改
     if git diff --staged --quiet; then
         log_warning "没有检测到更改，无需提交"
         return 1
     fi
-    
+
+    local commit_message=""
+    local default_message=$(generate_default_commit_message "$is_update" "$repo_name")
+
     if [[ "$is_update" == "true" ]]; then
-        echo -n "请输入提交信息: "
+        echo -n "请输入提交信息 (回车使用默认: $default_message): "
         read -r commit_message
-        
+
         if [[ -z "$commit_message" ]]; then
-            commit_message="Update project files"
+            commit_message="$default_message"
         fi
     else
-        commit_message="Initial commit for $repo_name"
+        commit_message="$default_message"
     fi
-    
+
     log_info "提交更改: $commit_message"
     git commit -m "$commit_message"
     log_success "提交完成"
     return 0
 }
 
+# 清除其他GitHub相关配置
+clean_other_github_configs() {
+    log_info "清除其他GitHub相关配置..."
+
+    # 清除所有远程仓库
+    local remotes=$(git remote)
+    if [[ -n "$remotes" ]]; then
+        for remote in $remotes; do
+            log_info "移除远程仓库: $remote"
+            git remote remove "$remote" 2>/dev/null || true
+        done
+    fi
+
+    # 清除GitHub相关的配置
+    git config --unset-all remote.origin.url 2>/dev/null || true
+    git config --unset-all branch.main.remote 2>/dev/null || true
+    git config --unset-all branch.main.merge 2>/dev/null || true
+    git config --unset-all branch.master.remote 2>/dev/null || true
+    git config --unset-all branch.master.merge 2>/dev/null || true
+
+    log_success "清除完成，确保只连接到您的GitHub账户"
+}
+
 # 添加远程仓库
 add_remote() {
     local repo_name=$1
     local remote_url="git@github.com:${DEFAULT_USERNAME}/${repo_name}.git"
-    
-    # 检查是否已有远程仓库
-    if git remote get-url origin &>/dev/null; then
-        current_url=$(git remote get-url origin)
-        if [[ "$current_url" != "$remote_url" ]]; then
-            log_info "更新远程仓库URL"
-            git remote set-url origin "$remote_url"
-        fi
-    else
-        log_info "添加远程仓库"
-        git remote add origin "$remote_url"
-    fi
-    
+
+    log_info "配置远程仓库: $repo_name"
+    log_info "目标URL: $remote_url"
+
+    # 添加新的远程仓库
+    git remote add origin "$remote_url"
+
     log_success "远程仓库配置完成: $remote_url"
 }
 
@@ -341,7 +360,10 @@ main() {
     
     # 检查依赖
     check_dependencies
-    
+
+    # 检查SSH连接
+    check_ssh_connection
+
     # 配置Git
     setup_git_config
     
@@ -350,7 +372,52 @@ main() {
     
     # 获取项目名称
     repo_name=$(get_repo_name)
+
+    # 验证仓库名称
+    if [[ -z "$repo_name" || "$repo_name" =~ [^a-zA-Z0-9._-] ]]; then
+        log_error "无效的仓库名称: $repo_name"
+        log_info "仓库名称只能包含字母、数字、点、下划线和连字符"
+        exit 1
+    fi
+
     log_info "使用项目名称: $repo_name"
+
+    # 检查GitHub仓库是否存在
+    log_info "检查GitHub仓库是否存在: $repo_name"
+    if check_github_repo "$repo_name"; then
+        log_warning "GitHub仓库 '$repo_name' 已存在"
+        echo "选择操作:"
+        echo "1) 使用现有仓库 (更新)"
+        echo "2) 输入新的项目名称"
+        echo -n "请选择 [1-2]: "
+        read -r choice
+
+        case $choice in
+            1)
+                log_info "使用现有仓库: $repo_name"
+                ;;
+            2)
+                echo -n "请输入新的项目名称: "
+                read -r new_name
+
+                if [[ -z "$new_name" ]]; then
+                    log_error "项目名称不能为空"
+                    exit 1
+                fi
+
+                if check_github_repo "$new_name"; then
+                    log_error "仓库 '$new_name' 也已存在，请选择其他名称"
+                    exit 1
+                fi
+                repo_name="$new_name"
+                log_info "使用新项目名称: $repo_name"
+                ;;
+            *)
+                log_error "无效选择"
+                exit 1
+                ;;
+        esac
+    fi
 
     # 检查是否为更新
     is_update="false"
@@ -370,9 +437,14 @@ main() {
         fi
     fi
     
+    # 清除其他GitHub配置（确保只连接到您的账户）
+    if [[ "$is_update" != "true" ]] || [[ ! $(git remote get-url origin 2>/dev/null) =~ github.com[:/]${DEFAULT_USERNAME}/ ]]; then
+        clean_other_github_configs
+    fi
+
     # 添加文件
     add_files
-    
+
     # 提交更改
     if commit_changes "$repo_name" "$is_update"; then
         # 配置远程仓库
