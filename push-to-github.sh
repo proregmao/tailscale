@@ -511,8 +511,13 @@ push_to_github() {
                 fi
             fi
 
-            push_output=$(git push origin "$current_branch" 2>&1)
-            push_result=$?
+            if git push origin "$current_branch"; then
+                push_result=0
+                push_output="推送成功"
+            else
+                push_result=$?
+                push_output=$(git push origin "$current_branch" 2>&1 || true)
+            fi
         else
             # 首次推送
             if [[ "$current_branch" != "main" ]]; then
@@ -522,8 +527,13 @@ push_to_github() {
             fi
 
             log_info "首次推送分支: $current_branch"
-            push_output=$(git push -u origin "$current_branch" 2>&1)
-            push_result=$?
+            if git push -u origin "$current_branch"; then
+                push_result=0
+                push_output="首次推送成功"
+            else
+                push_result=$?
+                push_output=$(git push -u origin "$current_branch" 2>&1 || true)
+            fi
         fi
 
         # 检查推送结果
